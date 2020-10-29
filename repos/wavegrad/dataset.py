@@ -21,7 +21,7 @@ import torchaudio
 
 from glob import glob
 from torch.utils.data.distributed import DistributedSampler
-from nvSTFT import STFT as STFT_Class
+from wavegrad.nvSTFT import STFT as STFT_Class
 STFT = STFT_Class(hop_length=300)
 
 class NumpyDataset(torch.utils.data.Dataset):
