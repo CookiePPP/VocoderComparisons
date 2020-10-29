@@ -44,13 +44,15 @@ def train(rank, a, h):
         cp_do = scan_checkpoint(a.checkpoint_path, 'do_')
 
     steps = 0
-    if cp_g is None or cp_do is None:
+    if cp_g is not None:
+        state_dict_g = load_checkpoint(cp_g, device)
+        generator.load_state_dict(state_dict_g['generator'])
+    
+    if cp_do is None:
         state_dict_do = None
         last_epoch = -1
     else:
-        state_dict_g = load_checkpoint(cp_g, device)
         state_dict_do = load_checkpoint(cp_do, device)
-        generator.load_state_dict(state_dict_g['generator'])
         mpd.load_state_dict(state_dict_do['mpd'])
         msd.load_state_dict(state_dict_do['msd'])
         steps = state_dict_do['steps'] + 1
