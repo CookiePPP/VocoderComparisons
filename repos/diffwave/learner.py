@@ -17,14 +17,14 @@ import numpy as np
 import os
 import torch
 import torch.nn as nn
-from glob import glob
 
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
-from wavegrad.dataset import from_path as dataset_from_path
-from wavegrad.model import WaveGrad
+from diffwave.dataset import from_path as dataset_from_path
+from diffwave.model import DiffWave
+from diffwave.params import AttrDict
 
 
 def _nested_map(struct, map_fn):
@@ -37,7 +37,7 @@ def _nested_map(struct, map_fn):
   return map_fn(struct)
 
 
-class WaveGradLearner:
+class DiffWaveLearner:
   def __init__(self, model_dir, model, dataset, optimizer, params, *args, **kwargs):
     os.makedirs(model_dir, exist_ok=True)
     self.model_dir = model_dir
@@ -51,8 +51,7 @@ class WaveGradLearner:
     self.is_master = True
 
     beta = np.array(self.params.noise_schedule)
-    noise_level = np.cumprod(1 - beta)**0.5
-    noise_level = np.concatenate([[1.0], noise_level], axis=0)
+    noise_level = np.cumprod(1 - beta)
     self.noise_level = torch.tensor(noise_level.astype(np.float32))
     self.loss_fn = nn.L1Loss()
     self.summary_writer = None
@@ -72,28 +71,15 @@ class WaveGradLearner:
 
   def load_state_dict(self, state_dict):
     if hasattr(self.model, 'module') and isinstance(self.model.module, nn.Module):
-      current_model_dict = self.model.module.state_dict()
-      safe_dict = {k: v for k, v in state_dict['model'].items() if k in current_model_dict.keys() and v.shape == current_model_dict[k].shape}
-      del current_model_dict
-      self.model.module.load_state_dict(safe_dict)
+      self.model.module.load_state_dict(state_dict['model'])
     else:
-      current_model_dict = self.model.module.state_dict()
-      safe_dict = {k: v for k, v in state_dict['model'].items() if k in current_model_dict.keys() and v.shape == current_model_dict[k].shape}
-      del current_model_dict
-      self.model.load_state_dict(safe_dict)
-    
-    if 'optimizer' in state_dict.keys() and state_dict['optimizer'] is not None:
-        current_opt_dict = self.optimizer.state_dict()
-        safe_dict = {k: v for k, v in state_dict['optimizer'].items() if k in current_opt_dict.keys() and v.shape == current_opt_dict[k].shape}
-        del current_opt_dict
-        self.optimizer.load_state_dict(safe_dict)
-    if 'scaler' in state_dict.keys()    and state_dict['scaler'] is not None:
-        self.scaler.load_state_dict(state_dict['scaler'])
-    if 'step' in state_dict.keys()      and state_dict['step'] is not None:
-        self.step = state_dict['step']
+      self.model.load_state_dict(state_dict['model'])
+    self.optimizer.load_state_dict(state_dict['optimizer'])
+    self.scaler.load_state_dict(state_dict['scaler'])
+    self.step = state_dict['step']
 
-  def save_to_checkpoint(self, filename='weights', n_models_to_keep=2):
-    save_basename = f'{filename}-{self.step:08}.pt'
+  def save_to_checkpoint(self, filename='weights'):
+    save_basename = f'{filename}-{self.step}.pt'
     save_name = f'{self.model_dir}/{save_basename}'
     link_name = f'{self.model_dir}/{filename}.pt'
     torch.save(self.state_dict(), save_name)
@@ -103,27 +89,16 @@ class WaveGradLearner:
       if os.path.islink(link_name):
         os.unlink(link_name)
       os.symlink(save_basename, link_name)
-      
-    # find and delete old checkpoints
-    cp_list = sorted(glob(f'{self.model_dir}/{filename}-????????.pt'))
-    if len(cp_list) > n_models_to_keep:
-      for cp in cp_list[:-n_models_to_keep]:
-        os.unlink(cp)
-  
+
   def restore_from_checkpoint(self, filename='weights'):
     try:
-      # find and delete old checkpoints
-      cp_list = sorted(glob(f'{self.model_dir}/{filename}-????????.pt'))
-      if len(cp_list) < 1:
-        return False
-      
-      checkpoint = torch.load(cp_list[-1])
+      checkpoint = torch.load(f'{self.model_dir}/{filename}.pt')
       self.load_state_dict(checkpoint)
       return True
     except FileNotFoundError:
       return False
 
-  def train(self, max_steps=None, checkpoint_interval=5000, n_models_to_keep=2):
+  def train(self, max_steps=None):
     device = next(self.model.parameters()).device
     while True:
       for features in tqdm(self.dataset, desc=f'Epoch {self.step // len(self.dataset)}') if self.is_master else self.dataset:
@@ -134,10 +109,10 @@ class WaveGradLearner:
         if torch.isnan(loss).any():
           raise RuntimeError(f'Detected NaN loss at step {self.step}.')
         if self.is_master:
-          if self.step % 100 == 0:
+          if self.step % 50 == 0:
             self._write_summary(self.step, features, loss)
-          if self.step % checkpoint_interval == 0:
-            self.save_to_checkpoint(n_models_to_keep=n_models_to_keep)
+          if self.step % len(self.dataset) == 0:
+            self.save_to_checkpoint()
         self.step += 1
 
   def train_step(self, features):
@@ -148,31 +123,30 @@ class WaveGradLearner:
     spectrogram = features['spectrogram']
 
     N, T = audio.shape
-    S = 1000
     device = audio.device
     self.noise_level = self.noise_level.to(device)
 
     with self.autocast:
-      s = torch.randint(1, S + 1, [N], device=audio.device)
-      l_a, l_b = self.noise_level[s-1], self.noise_level[s]
-      noise_scale = l_a + torch.rand(N, device=audio.device) * (l_b - l_a)
-      noise_scale = noise_scale.unsqueeze(1)
+      t = torch.randint(0, len(self.params.noise_schedule), [N], device=audio.device)
+      noise_scale = self.noise_level[t].unsqueeze(1)
+      noise_scale_sqrt = noise_scale**0.5
       noise = torch.randn_like(audio)
-      noisy_audio = noise_scale * audio + (1.0 - noise_scale**2)**0.5 * noise
+      noisy_audio = noise_scale_sqrt * audio + (1.0 - noise_scale)**0.5 * noise
 
-      predicted = self.model(noisy_audio, spectrogram, noise_scale.squeeze(1))
+      predicted = self.model(noisy_audio, spectrogram, t)
       loss = self.loss_fn(noise, predicted.squeeze(1))
 
     self.scaler.scale(loss).backward()
     self.scaler.unscale_(self.optimizer)
-    self.grad_norm = nn.utils.clip_grad_norm_(self.model.parameters(), self.params.max_grad_norm)
+    self.grad_norm = nn.utils.clip_grad_norm_(self.model.parameters(), self.params.max_grad_norm or 1e9)
     self.scaler.step(self.optimizer)
     self.scaler.update()
     return loss
 
   def _write_summary(self, step, features, loss):
     writer = self.summary_writer or SummaryWriter(self.model_dir, purge_step=step)
-    writer.add_audio('audio/reference', features['audio'][0], step, sample_rate=self.params.sample_rate)
+    writer.add_audio('feature/audio', features['audio'][0], step, sample_rate=self.params.sample_rate)
+    writer.add_image('feature/spectrogram', torch.flip(features['spectrogram'][:1], [1]), step)
     writer.add_scalar('train/loss', loss, step)
     writer.add_scalar('train/grad_norm', self.grad_norm, step)
     writer.flush()
@@ -183,15 +157,15 @@ def _train_impl(replica_id, model, dataset, args, params):
   torch.backends.cudnn.benchmark = True
   opt = torch.optim.Adam(model.parameters(), lr=params.learning_rate)
 
-  learner = WaveGradLearner(args.model_dir, model, dataset, opt, params, fp16=args.fp16)
+  learner = DiffWaveLearner(args.model_dir, model, dataset, opt, params, fp16=args.fp16)
   learner.is_master = (replica_id == 0)
   learner.restore_from_checkpoint()
-  learner.train(max_steps=args.max_steps, checkpoint_interval=args.checkpoint_interval, n_models_to_keep=args.n_models_to_keep)
+  learner.train(max_steps=args.max_steps)
 
 
 def train(args, params):
   dataset = dataset_from_path(args.data_dirs, params)
-  model = WaveGrad(params).cuda()
+  model = DiffWave(params).cuda()
   _train_impl(0, model, dataset, args, params)
 
 
@@ -202,6 +176,6 @@ def train_distributed(replica_id, replica_count, port, args, params):
 
   device = torch.device('cuda', replica_id)
   torch.cuda.set_device(device)
-  model = WaveGrad(params).to(device)
+  model = DiffWave(params).to(device)
   model = DistributedDataParallel(model, device_ids=[replica_id])
   _train_impl(replica_id, model, dataset_from_path(args.data_dirs, params, is_distributed=True), args, params)
