@@ -84,7 +84,7 @@ class STFT():
     
     def __call__(self, audiopath):
         audio, sr = load_wav_to_torch(audiopath, target_sr=22050)
-        spect = self.get_mel(audio.unsqueeze(0))
+        spect = self.get_mel(audio.unsqueeze(0)).squeeze(0)
         return spect
 
 stft = STFT()
