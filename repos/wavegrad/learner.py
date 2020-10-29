@@ -74,22 +74,21 @@ class WaveGradLearner:
     if hasattr(self.model, 'module') and isinstance(self.model.module, nn.Module):
       current_model_dict = self.model.module.state_dict()
       safe_dict = {k: v for k, v in state_dict['model'].items() if k in current_model_dict.keys() and v.shape == current_model_dict[k].shape}
+      invalid_dict = {k: v for k, v in state_dict['model'].items() if not (k in current_model_dict.keys() and v.shape == current_model_dict[k].shape)}
       current_model_dict.update(safe_dict)
       self.model.module.load_state_dict(current_model_dict)
       del current_model_dict
     else:
       current_model_dict = self.model.state_dict()
       safe_dict = {k: v for k, v in state_dict['model'].items() if k in current_model_dict.keys() and v.shape == current_model_dict[k].shape}
+      invalid_dict = {k: v for k, v in state_dict['model'].items() if not (k in current_model_dict.keys() and v.shape == current_model_dict[k].shape)}
       current_model_dict.update(safe_dict)
       self.model.load_state_dict(current_model_dict)
       del current_model_dict
+    warm_started = bool(len(invalid_dict.keys()))
     
-    if 'optimizer' in state_dict.keys() and state_dict['optimizer'] is not None:
-        current_opt_dict = self.optimizer.state_dict()
-        safe_dict = {k: v for k, v in state_dict['optimizer'].items() if k in current_opt_dict.keys() and (type(v) != torch.Tensor or v.shape == current_opt_dict[k].shape)}
-        current_opt_dict.update(safe_dict)
-        self.optimizer.load_state_dict(current_opt_dict)
-        del current_opt_dict
+    if 'optimizer' in state_dict.keys() and state_dict['optimizer'] is not None and not warm_started:
+        self.optimizer.load_state_dict(state_dict['optimizer'])
     if 'scaler' in state_dict.keys()    and state_dict['scaler'] is not None:
         self.scaler.load_state_dict(state_dict['scaler'])
     if 'step' in state_dict.keys()      and state_dict['step'] is not None:
