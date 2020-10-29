@@ -21,7 +21,8 @@ import torchaudio
 
 from glob import glob
 from torch.utils.data.distributed import DistributedSampler
-
+from diffwave.nvSTFT import STFT as STFT_Class
+STFT = STFT_Class(hop_length=300)
 
 class NumpyDataset(torch.utils.data.Dataset):
   def __init__(self, paths):
@@ -37,10 +38,14 @@ class NumpyDataset(torch.utils.data.Dataset):
     audio_filename = self.filenames[idx]
     spec_filename = f'{audio_filename}.spec.npy'
     signal, _ = torchaudio.load_wav(audio_filename)
-    spectrogram = np.load(spec_filename)
+    if os.path.exists(spec_filename):
+        spectrogram = torch.load(spec_filename)
+    else:
+        spectrogram = STFT(audio_filename)
+        torch.save(spectrogram, spec_filename)
     return {
-        'audio': signal[0] / 32767.5,
-        'spectrogram': spectrogram.T
+        'audio': signal[0] / 32767.5, # normalized audio, range [-1.0, 1.0]
+        'spectrogram': spectrogram.T # [n_mel, T] -> [T, n_mel]
     }
 
 

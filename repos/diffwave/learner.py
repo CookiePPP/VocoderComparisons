@@ -17,6 +17,7 @@ import numpy as np
 import os
 import torch
 import torch.nn as nn
+from glob import glob
 
 from torch.nn.parallel import DistributedDataParallel
 from torch.utils.tensorboard import SummaryWriter
@@ -71,15 +72,30 @@ class DiffWaveLearner:
 
   def load_state_dict(self, state_dict):
     if hasattr(self.model, 'module') and isinstance(self.model.module, nn.Module):
-      self.model.module.load_state_dict(state_dict['model'])
+      current_model_dict = self.model.module.state_dict()
+      safe_dict = {k: v for k, v in state_dict['model'].items() if k in current_model_dict.keys() and v.shape == current_model_dict[k].shape}
+      invalid_dict = {k: v for k, v in state_dict['model'].items() if not (k in current_model_dict.keys() and v.shape == current_model_dict[k].shape)}
+      current_model_dict.update(safe_dict)
+      self.model.module.load_state_dict(current_model_dict)
+      del current_model_dict
     else:
-      self.model.load_state_dict(state_dict['model'])
-    self.optimizer.load_state_dict(state_dict['optimizer'])
-    self.scaler.load_state_dict(state_dict['scaler'])
-    self.step = state_dict['step']
+      current_model_dict = self.model.state_dict()
+      safe_dict = {k: v for k, v in state_dict['model'].items() if k in current_model_dict.keys() and v.shape == current_model_dict[k].shape}
+      invalid_dict = {k: v for k, v in state_dict['model'].items() if not (k in current_model_dict.keys() and v.shape == current_model_dict[k].shape)}
+      current_model_dict.update(safe_dict)
+      self.model.load_state_dict(current_model_dict)
+      del current_model_dict
+    warm_started = bool(len(invalid_dict.keys()))
+    
+    if 'optimizer' in state_dict.keys() and state_dict['optimizer'] is not None and not warm_started:
+        self.optimizer.load_state_dict(state_dict['optimizer'])
+    if 'scaler' in state_dict.keys()    and state_dict['scaler'] is not None:
+        self.scaler.load_state_dict(state_dict['scaler'])
+    if 'step' in state_dict.keys()      and state_dict['step'] is not None:
+        self.step = state_dict['step']
 
-  def save_to_checkpoint(self, filename='weights'):
-    save_basename = f'{filename}-{self.step}.pt'
+  def save_to_checkpoint(self, filename='weights', n_models_to_keep=2):
+    save_basename = f'{filename}-{self.step:08}.pt'
     save_name = f'{self.model_dir}/{save_basename}'
     link_name = f'{self.model_dir}/{filename}.pt'
     torch.save(self.state_dict(), save_name)
@@ -89,19 +105,30 @@ class DiffWaveLearner:
       if os.path.islink(link_name):
         os.unlink(link_name)
       os.symlink(save_basename, link_name)
-
+      
+    # find and delete old checkpoints
+    cp_list = sorted(glob(f'{self.model_dir}/{filename}-????????.pt'))
+    if len(cp_list) > n_models_to_keep:
+      for cp in cp_list[:-n_models_to_keep]:
+        os.unlink(cp)
+  
   def restore_from_checkpoint(self, filename='weights'):
     try:
-      checkpoint = torch.load(f'{self.model_dir}/{filename}.pt')
+      # find and delete old checkpoints
+      cp_list = sorted(glob(f'{self.model_dir}/{filename}-????????.pt'))
+      if len(cp_list) < 1:
+        return False
+      
+      checkpoint = torch.load(cp_list[-1])
       self.load_state_dict(checkpoint)
       return True
     except FileNotFoundError:
       return False
 
-  def train(self, max_steps=None):
+  def train(self, max_steps=None, checkpoint_interval=5000, n_models_to_keep=2):
     device = next(self.model.parameters()).device
     while True:
-      for features in tqdm(self.dataset, desc=f'Epoch {self.step // len(self.dataset)}') if self.is_master else self.dataset:
+      for features in tqdm(self.dataset, desc=f'Epoch {self.step // len(self.dataset)} Iter {self.step} ') if self.is_master else self.dataset:
         if max_steps is not None and self.step >= max_steps:
           return
         features = _nested_map(features, lambda x: x.to(device) if isinstance(x, torch.Tensor) else x)
@@ -109,10 +136,10 @@ class DiffWaveLearner:
         if torch.isnan(loss).any():
           raise RuntimeError(f'Detected NaN loss at step {self.step}.')
         if self.is_master:
-          if self.step % 50 == 0:
+          if self.step % 100 == 0:
             self._write_summary(self.step, features, loss)
-          if self.step % len(self.dataset) == 0:
-            self.save_to_checkpoint()
+          if self.step % checkpoint_interval == 0:
+            self.save_to_checkpoint(n_models_to_keep=n_models_to_keep)
         self.step += 1
 
   def train_step(self, features):
@@ -160,7 +187,7 @@ def _train_impl(replica_id, model, dataset, args, params):
   learner = DiffWaveLearner(args.model_dir, model, dataset, opt, params, fp16=args.fp16)
   learner.is_master = (replica_id == 0)
   learner.restore_from_checkpoint()
-  learner.train(max_steps=args.max_steps)
+  learner.train(max_steps=args.max_steps, checkpoint_interval=args.checkpoint_interval, n_models_to_keep=args.n_models_to_keep)
 
 
 def train(args, params):
