@@ -128,7 +128,7 @@ class WaveGradLearner:
   def train(self, max_steps=None, checkpoint_interval=5000, n_models_to_keep=2):
     device = next(self.model.parameters()).device
     while True:
-      for features in tqdm(self.dataset, desc=f'Epoch {self.step // len(self.dataset)}') if self.is_master else self.dataset:
+      for features in tqdm(self.dataset, desc=f'Epoch {self.step // len(self.dataset)} Iter {self.step} ') if self.is_master else self.dataset:
         if max_steps is not None and self.step >= max_steps:
           return
         features = _nested_map(features, lambda x: x.to(device) if isinstance(x, torch.Tensor) else x)
