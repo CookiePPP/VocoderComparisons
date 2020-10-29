@@ -97,9 +97,9 @@ def train(rank, a, h):
                                        batch_size=1,
                                        pin_memory=True,
                                        drop_last=True)
-
-        sw = SummaryWriter(os.path.join(a.checkpoint_path, 'logs'))
-
+        
+        sw = SummaryWriter(os.path.join(a.checkpoint_path, 'logs'), max_queue=10000)
+    
     generator.train()
     mpd.train()
     msd.train()
