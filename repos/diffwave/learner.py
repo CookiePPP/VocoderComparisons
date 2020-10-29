@@ -90,7 +90,8 @@ class DiffWaveLearner:
     if 'optimizer' in state_dict.keys() and state_dict['optimizer'] is not None and not warm_started:
         self.optimizer.load_state_dict(state_dict['optimizer'])
     if 'scaler' in state_dict.keys()    and state_dict['scaler'] is not None:
-        self.scaler.load_state_dict(state_dict['scaler'])
+        if len(state_dict['scaler'].keys()):
+            self.scaler.load_state_dict(state_dict['scaler'])
     if 'step' in state_dict.keys()      and state_dict['step'] is not None:
         self.step = state_dict['step']
 
