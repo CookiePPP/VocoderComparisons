@@ -77,7 +77,7 @@ class WaveGradLearner:
       del current_model_dict
       self.model.module.load_state_dict(safe_dict)
     else:
-      current_model_dict = self.model.module.state_dict()
+      current_model_dict = self.model.state_dict()
       safe_dict = {k: v for k, v in state_dict['model'].items() if k in current_model_dict.keys() and v.shape == current_model_dict[k].shape}
       del current_model_dict
       self.model.load_state_dict(safe_dict)
