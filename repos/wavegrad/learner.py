@@ -86,9 +86,10 @@ class WaveGradLearner:
     
     if 'optimizer' in state_dict.keys() and state_dict['optimizer'] is not None:
         current_opt_dict = self.optimizer.state_dict()
-        safe_dict = {k: v for k, v in state_dict['optimizer'].items() if k in current_opt_dict.keys() and v.shape == current_opt_dict[k].shape}
+        safe_dict = {k: v for k, v in state_dict['optimizer'].items() if k in current_opt_dict.keys() and (type(v) != torch.Tensor or v.shape == current_opt_dict[k].shape)}
+        current_opt_dict.update(safe_dict)
+        self.optimizer.load_state_dict(current_opt_dict)
         del current_opt_dict
-        self.optimizer.load_state_dict(safe_dict)
     if 'scaler' in state_dict.keys()    and state_dict['scaler'] is not None:
         self.scaler.load_state_dict(state_dict['scaler'])
     if 'step' in state_dict.keys()      and state_dict['step'] is not None:
