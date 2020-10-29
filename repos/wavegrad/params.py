@@ -40,6 +40,7 @@ params = AttrDict(
 
     # Data params
     sample_rate=22050,
+    n_mel_channels=80,
     hop_samples=300,  # Don't change this. Really.
     crop_mel_frames=24,
 
