@@ -17,7 +17,7 @@ from meldataset import MelDataset, get_dataset_filelist
 from nvSTFT import stft as STFT
 from models import Generator, MultiPeriodDiscriminator, MultiScaleDiscriminator, feature_loss, generator_loss,\
     discriminator_loss
-from utils import plot_spectrogram, scan_checkpoint, load_checkpoint, save_checkpoint
+from utils import plot_spectrogram, scan_checkpoint, load_checkpoint, del_old_checkpoints, save_checkpoint
 
 torch.backends.cudnn.benchmark = True
 
