@@ -111,7 +111,8 @@ class WaveGradLearner:
     cp_list = sorted(glob(f'{self.model_dir}/{filename}-????????.pt'))
     if len(cp_list) > n_models_to_keep:
       for cp in cp_list[:-n_models_to_keep]:
-        os.unlink(cp)
+        open(cp, 'w').close()# empty file contents
+        os.unlink(cp)# delete file (move to trash when using Colab)
   
   def restore_from_checkpoint(self, filename='weights'):
     try:
