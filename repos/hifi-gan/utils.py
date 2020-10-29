@@ -49,6 +49,15 @@ def save_checkpoint(filepath, obj):
     print("Complete.")
 
 
+def del_old_checkpoints(cp_dir, prefix, n_models=2):
+    pattern = os.path.join(cp_dir, prefix + '????????')
+    cp_list = glob.glob(pattern) # get checkpoint paths
+    cp_list = sorted(cp_list)# sort by iter
+    if len(cp_list) > n_models: # if more than n_models models are found
+        for cp in cp_list[:-n_models]:# delete the oldest models other than lastest n_models
+            os.unlink(cp)# delete cp
+
+
 def scan_checkpoint(cp_dir, prefix):
     pattern = os.path.join(cp_dir, prefix + '????????')
     cp_list = glob.glob(pattern)

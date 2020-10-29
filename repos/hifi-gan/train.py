@@ -180,7 +180,9 @@ def train(rank, a, h):
                                                          else msd).state_dict(),
                                      'optim_g': optim_g.state_dict(), 'optim_d': optim_d.state_dict(), 'steps': steps,
                                      'epoch': epoch})
-
+                    del_old_checkpoints(a.checkpoint_path, 'g_' , a.n_models_to_keep)
+                    del_old_checkpoints(a.checkpoint_path, 'do_', a.n_models_to_keep)
+                
                 # Tensorboard summary logging
                 if steps % a.summary_interval == 0:
                     sw.add_scalar("training/gen_loss_total", loss_gen_all, steps)
@@ -231,6 +233,7 @@ def main():
     parser.add_argument('--training_epochs', default=3100, type=int)
     parser.add_argument('--stdout_interval', default=5, type=int)
     parser.add_argument('--checkpoint_interval', default=5000, type=int)
+    parser.add_argument('--n_models_to_keep', default=2, type=int)
     parser.add_argument('--summary_interval', default=100, type=int)
     parser.add_argument('--validation_interval', default=1000, type=int)
     parser.add_argument('--fine_tuning', default=False, type=bool)
