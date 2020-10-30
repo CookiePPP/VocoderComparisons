@@ -18,7 +18,7 @@ def check_files(sampling_rate, segment_size, training_files):
         print(len_training_files - len(training_files), "Files don't exist (and have been removed from training)")
     
     len_training_files = len(training_files)
-    training_files = [x for x in training_files if load_wav_to_torch(x, target_sr=sampling_rate)[0] > segment_size]
+    training_files = [x for x in training_files if len(load_wav_to_torch(x, target_sr=sampling_rate)[0]) > segment_size]
     if (len_training_files - len(training_files)) > 0:
         print(len_training_files - len(training_files), "Files are too short (and have been removed from training)")
     return training_files
