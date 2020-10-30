@@ -156,7 +156,7 @@ class ConvInUpsampleNetwork(torch.nn.Module):
         kernel_size = aux_context_window + 1 if use_causal_conv else 2 * aux_context_window + 1
         # NOTE(kan-bayashi): Here do not use padding because the input is already padded
         padd = aux_context_window if aux_context_pad else 0
-        self.conv_in = Conv1d(aux_channels, aux_channels, kernel_size=kernel_size, padd, bias=False)
+        self.conv_in = Conv1d(aux_channels, aux_channels, kernel_size=kernel_size, padding=padd, bias=False)
         self.upsample = UpsampleNetwork(
             upsample_scales=upsample_scales,
             nonlinear_activation=nonlinear_activation,
