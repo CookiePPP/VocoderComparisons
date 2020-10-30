@@ -37,8 +37,8 @@ def get_dataset_filelist(a, segment_size, sampling_rate):
         print(f"Found {len(wav_files)} WAV Files.")
         random.Random(1).shuffle(wav_files)
         
-        training_files   = wav_files[:int(len(wav_files*0.95)) ]
-        validation_files = wav_files[ int(len(wav_files*0.95)):]
+        training_files   = wav_files[:int(len(wav_files)*0.95) ]
+        validation_files = wav_files[ int(len(wav_files)*0.95):]
     
     if not a.skip_file_checks:
         print("Checking files")
