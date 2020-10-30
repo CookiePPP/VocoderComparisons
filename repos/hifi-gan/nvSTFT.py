@@ -65,6 +65,7 @@ class STFT():
         self.hann_window = {}
     
     def get_mel(self, y, center=False):
+        sampling_rate = self.target_sr
         n_mels     = self.n_mels
         n_fft      = self.n_fft
         win_size   = self.win_size
