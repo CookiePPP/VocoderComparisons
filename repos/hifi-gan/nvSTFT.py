@@ -47,18 +47,27 @@ def dynamic_range_decompression_torch(x, C=1):
     return torch.exp(x) / C
 
 class STFT():
-    def __init__(self, sr=22050, n_mels=80, hop_length=256, fmin=20):
+    def __init__(self, sr=22050, n_mels=80, n_fft=1024, win_size=1024, hop_length=256, fmin=20, fmax=11025, clip_val=1e-5):
         self.target_sr = sr
+        
+        self.n_mels     = n_mels
+        self.n_fft      = n_fft
+        self.win_size   = win_size
         self.hop_length = hop_length
-        self.n_mels = n_mels
-        self.fmin = fmin
+        self.fmin     = fmin
+        self.fmax     = fmax
+        self.clip_val = clip_val
         self.mel_basis = {}
         self.hann_window = {}
     
-    def get_mel(self, y, n_fft=1024, sampling_rate=22050, win_size=1024, fmax=11025, center=False):
-        hop_length = self.hop_length
+    def get_mel(self, y, center=False):
         n_mels     = self.n_mels
+        n_fft      = self.n_fft
+        win_size   = self.win_size
+        hop_length = self.hop_length
         fmin       = self.fmin
+        fmax       = self.fmax
+        clip_val   = self.clip_val
         
         if torch.min(y) < -1.:
             print('min value is ', torch.min(y))
@@ -79,11 +88,11 @@ class STFT():
         spec = torch.sqrt(spec.pow(2).sum(-1)+(1e-9))
         
         spec = torch.matmul(self.mel_basis[str(fmax)+'_'+str(y.device)], spec)
-        spec = dynamic_range_compression_torch(spec)
+        spec = dynamic_range_compression_torch(spec, clip_val=clip_val)
         return spec
     
     def __call__(self, audiopath):
-        audio, sr = load_wav_to_torch(audiopath, target_sr=22050)
+        audio, sr = load_wav_to_torch(audiopath, target_sr=self.target_sr)
         spect = self.get_mel(audio.unsqueeze(0)).squeeze(0)
         return spect
 

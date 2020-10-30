@@ -21,7 +21,7 @@
     "hop_size": 256,
     "win_size": 1024,
 
-    "sampling_rate": 22050,
+    "sampling_rate": 48000,
 
     "fmin": 20,
     "fmax": 11025,

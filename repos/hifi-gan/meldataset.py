@@ -8,14 +8,24 @@ from librosa.util import normalize
 from scipy.io.wavfile import read
 from librosa.filters import mel as librosa_mel_fn
 from nvSTFT import load_wav_to_torch
-from nvSTFT import stft as STFT
+from nvSTFT import STFT as STFT_Class
+from glob import glob
 
 def get_dataset_filelist(a):
-    with open(a.input_training_file, 'r', encoding='utf-8') as fi:
-        training_files = [x.split('|')[0] for x in fi.read().split('\n') if len(x) > 0]
+    if a.input_wavs_dir is None:
+        with open(a.input_training_file, 'r', encoding='utf-8') as fi:
+            training_files = [x.split('|')[0] for x in fi.read().split('\n') if len(x) > 0]
 
-    with open(a.input_validation_file, 'r', encoding='utf-8') as fi:
-        validation_files = [x.split('|')[0] for x in fi.read().split('\n') if len(x) > 0]
+        with open(a.input_validation_file, 'r', encoding='utf-8') as fi:
+            validation_files = [x.split('|')[0] for x in fi.read().split('\n') if len(x) > 0]
+    else:
+        print("Searching for WAV files in '--input_wav_dir' arg...")
+        wav_files = sorted(glob(os.path.join(a.input_wavs_dir, '**', '*.wav'), recursive=True))
+        print(f"Found {len(wav_files)} WAV Files.")
+        random.Random(1).shuffle(wav_files)
+        
+        training_files   = wav_files[:int(len(wav_files*0.95)) ]
+        validation_files = wav_files[ int(len(wav_files*0.95)):]
     return training_files, validation_files
 
 
@@ -37,6 +47,7 @@ class MelDataset(torch.utils.data.Dataset):
         self.fmin = fmin
         self.fmax = fmax
         self.fmax_loss = fmax_loss
+        self.STFT = STFT_Class(sampling_rate, num_mels, n_fft, win_size, hop_size, fmin, fmax)
         self.cached_wav = None
         self.n_cache_reuse = n_cache_reuse
         self._cache_ref_count = 0
@@ -71,7 +82,7 @@ class MelDataset(torch.utils.data.Dataset):
                 else:
                     audio = torch.nn.functional.pad(audio, (0, self.segment_size - audio.size(1)), 'constant')
             
-            mel = STFT.get_mel(audio)
+            mel = self.STFT.get_mel(audio)
         else:
             mel = np.load(
                 os.path.join(self.base_mels_path, os.path.splitext(os.path.split(filename)[-1])[0] + '.npy'))

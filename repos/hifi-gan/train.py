@@ -14,7 +14,7 @@ from torch.distributed import init_process_group
 from torch.nn.parallel import DistributedDataParallel
 from env import AttrDict, build_env
 from meldataset import MelDataset, get_dataset_filelist
-from nvSTFT import stft as STFT
+from nvSTFT import STFT as STFT_Class
 from models import Generator, MultiPeriodDiscriminator, MultiScaleDiscriminator, feature_loss, generator_loss,\
     discriminator_loss
 from utils import plot_spectrogram, scan_checkpoint, load_checkpoint, del_old_checkpoints, save_checkpoint
@@ -80,7 +80,9 @@ def train(rank, a, h):
                           h.hop_size, h.win_size, h.sampling_rate, h.fmin, h.fmax, n_cache_reuse=0,
                           shuffle=False if h.num_gpus > 1 else True, fmax_loss=h.fmax_for_loss, device=device,
                           fine_tuning=a.fine_tuning, base_mels_path=a.input_mels_dir)
-
+    
+    STFT = STFT_Class(h.sampling_rate, h.num_mels, h.n_fft, h.win_size, h.hop_size, h.fmin, h.fmax)
+    
     train_sampler = DistributedSampler(trainset) if h.num_gpus > 1 else None
 
     train_loader = DataLoader(trainset, num_workers=h.num_workers, shuffle=False,
@@ -224,8 +226,7 @@ def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--group_name', default=None)
-    parser.add_argument('--input_wavs_dir', default='LJSpeech-1.1/wavs')
-    parser.add_argument('--input_mels_dir', default='ft_dataset')
+    parser.add_argument('--input_wavs_dir', default=None)
     parser.add_argument('--input_training_file', default='LJSpeech-1.1/training.txt')
     parser.add_argument('--input_validation_file', default='LJSpeech-1.1/validation.txt')
     parser.add_argument('--checkpoint_path', default='cp_hifigan')
