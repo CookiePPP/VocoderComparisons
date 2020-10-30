@@ -47,7 +47,7 @@ class MelDataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
         filename = self.audio_files[index]
         if self._cache_ref_count == 0:
-            audio, sampling_rate = load_wav_to_torch(filename)
+            audio, sampling_rate = load_wav_to_torch(filename, target_sr=self.sampling_rate)
             if not self.fine_tuning:
                 audio = torch.from_numpy(normalize(audio.numpy()) * 0.95)
             self.cached_wav = audio
@@ -58,10 +58,10 @@ class MelDataset(torch.utils.data.Dataset):
         else:
             audio = self.cached_wav
             self._cache_ref_count -= 1
-
+        
         #audio = torch.FloatTensor(audio)
         audio = audio.unsqueeze(0)
-
+        
         if not self.fine_tuning:
             if self.split:
                 if audio.size(1) >= self.segment_size:
@@ -70,13 +70,13 @@ class MelDataset(torch.utils.data.Dataset):
                     audio = audio[:, audio_start:audio_start+self.segment_size]
                 else:
                     audio = torch.nn.functional.pad(audio, (0, self.segment_size - audio.size(1)), 'constant')
-
+            
             mel = STFT.get_mel(audio)
         else:
             mel = np.load(
                 os.path.join(self.base_mels_path, os.path.splitext(os.path.split(filename)[-1])[0] + '.npy'))
             mel = torch.from_numpy(mel)
-
+            
             if self.split:
                 frames_per_seg = math.ceil(self.segment_size / self.hop_size)
 
@@ -87,9 +87,9 @@ class MelDataset(torch.utils.data.Dataset):
                 else:
                     mel = torch.nn.functional.pad(mel, (0, frames_per_seg - mel.size(2)), 'constant')
                     audio = torch.nn.functional.pad(audio, (0, self.segment_size - audio.size(1)), 'constant')
-
+        
         mel_loss = mel
-
+        
         return (mel.squeeze(), audio.squeeze(0), filename, mel_loss.squeeze())
 
     def __len__(self):

@@ -545,7 +545,7 @@ def main():
     parser.add_argument("--rank", "--local_rank", default=0, type=int,
                         help="rank for distributed training. no need to explictly specify.")
     args = parser.parse_args()
-
+    
     args.distributed = False
     if not torch.cuda.is_available():
         device = torch.device("cpu")

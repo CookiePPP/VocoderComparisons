@@ -132,7 +132,8 @@ class ConvInUpsampleNetwork(torch.nn.Module):
                  interpolate_mode="nearest",
                  freq_axis_kernel_size=1,
                  aux_channels=80,
-                 aux_context_window=0,
+                 aux_context_window=2,
+                 aux_context_pad=True,
                  use_causal_conv=False
                  ):
         """Initialize convolution + upsampling network module.
@@ -154,7 +155,8 @@ class ConvInUpsampleNetwork(torch.nn.Module):
         # To capture wide-context information in conditional features
         kernel_size = aux_context_window + 1 if use_causal_conv else 2 * aux_context_window + 1
         # NOTE(kan-bayashi): Here do not use padding because the input is already padded
-        self.conv_in = Conv1d(aux_channels, aux_channels, kernel_size=kernel_size, bias=False)
+        padd = aux_context_window if aux_context_pad else 0
+        self.conv_in = Conv1d(aux_channels, aux_channels, kernel_size=kernel_size, padd, bias=False)
         self.upsample = UpsampleNetwork(
             upsample_scales=upsample_scales,
             nonlinear_activation=nonlinear_activation,
