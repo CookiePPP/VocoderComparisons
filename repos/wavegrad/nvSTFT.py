@@ -14,7 +14,7 @@ try:
 except:
     sf = None
 
-def load_wav_to_torch(full_path, target_sr=22050):
+def load_wav_to_torch(full_path, target_sr=None):
     if full_path.endswith('wav') and sf is not None:
         sampling_rate, data = read(full_path) # scipy only supports .wav but reads faster...
     else:
@@ -28,9 +28,11 @@ def load_wav_to_torch(full_path, target_sr=22050):
     
     data = torch.FloatTensor(data.astype(np.float32))/max_mag
     
-    if sampling_rate != target_sr:
+    if target_sr is not None and sampling_rate != target_sr:
         data = torch.from_numpy(librosa.core.resample(data.numpy(), sampling_rate, target_sr))
         sampling_rate = target_sr
+    
+    data = data.clamp(min=-0.9999, max=0.9999)
     
     return data, sampling_rate
 
