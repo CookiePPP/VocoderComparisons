@@ -38,7 +38,7 @@ generator_params:
     skip_channels: 64     # Number of channels in skip conv.
     aux_channels: 80      # Number of channels for auxiliary feature conv.
                           # Must be the same as num_mels.
-    aux_context_window: 0 # Context window size for auxiliary feature.
+    aux_context_window: 2 # Context window size for auxiliary feature.
                           # If set to 2, previous 2 and future 2 frames will be considered.
     dropout: 0.0          # Dropout rate. 0.0 means no dropout applied.
     use_weight_norm: true # Whether to use weight norm.
