@@ -63,7 +63,7 @@ def get_nonzero_indexes(voiced):# get first and last zero index in array/1d tens
 class MelDataset(torch.utils.data.Dataset):
     def __init__(self, training_files, segment_size, n_fft, num_mels,
                  hop_size, win_size, sampling_rate,  fmin, fmax, split=True, shuffle=True, n_cache_reuse=1,
-                 device=None, fmax_loss=None, fine_tuning=False, base_mels_path=None, trim_non_voiced=False):
+                 device=None, fmax_loss=None, fine_tuning=False, trim_non_voiced=False):
         self.audio_files = training_files
         random.seed(1234)
         if shuffle:
@@ -84,7 +84,6 @@ class MelDataset(torch.utils.data.Dataset):
         self._cache_ref_count = 0
         self.device = device
         self.fine_tuning = fine_tuning
-        self.base_mels_path = base_mels_path
         self.trim_non_voiced = trim_non_voiced
         if self.trim_non_voiced:
             import pyworld as pw
@@ -149,8 +148,7 @@ class MelDataset(torch.utils.data.Dataset):
             
             mel = self.STFT.get_mel(audio)
         else:
-            mel = np.load(
-                os.path.join(self.base_mels_path, os.path.splitext(os.path.split(filename)[-1])[0] + '.npy'))
+            mel = np.load(filename.replace(".wav", ".npy"))
             mel = torch.from_numpy(mel)
             
             if self.split:
