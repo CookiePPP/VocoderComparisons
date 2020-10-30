@@ -23,8 +23,8 @@
 
     "sampling_rate": 22050,
 
-    "fmin": 0,
-    "fmax": 8000,
+    "fmin": 20,
+    "fmax": 11025,
     "fmax_for_loss": null,
 
     "num_workers": 4,
