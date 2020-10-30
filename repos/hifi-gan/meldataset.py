@@ -11,20 +11,20 @@ from nvSTFT import load_wav_to_torch
 from nvSTFT import STFT as STFT_Class
 from glob import glob
 
-def check_files(a, training_files):
+def check_files(sampling_rate, segment_size, training_files):
     len_training_files = len(training_files)
     training_files = [x for x in training_files if os.path.exists(x)]
     if (len_training_files - len(training_files)) > 0:
         print(len_training_files - len(training_files), "Files don't exist (and have been removed from training)")
     
     len_training_files = len(training_files)
-    training_files = [x for x in training_files if load_wav_to_torch(x, target_sr=a.sampling_rate) > a.segment_size]
+    training_files = [x for x in training_files if load_wav_to_torch(x, target_sr=sampling_rate) > segment_size]
     if (len_training_files - len(training_files)) > 0:
         print(len_training_files - len(training_files), "Files are too short (and have been removed from training)")
     return training_files
     
 
-def get_dataset_filelist(a):
+def get_dataset_filelist(a, segment_size, sampling_rate):
     if a.input_wavs_dir is None:
         with open(a.input_training_file, 'r', encoding='utf-8') as fi:
             training_files = [x.split('|')[0] for x in fi.read().split('\n') if len(x) > 0]
@@ -42,8 +42,8 @@ def get_dataset_filelist(a):
     
     if not a.skip_file_checks:
         print("Checking files")
-        training_files   = check_files(a, training_files)
-        validation_files = check_files(a, validation_files)
+        training_files   = check_files(sampling_rate, segment_size, training_files)
+        validation_files = check_files(sampling_rate, segment_size, validation_files)
     
     return training_files, validation_files
 
