@@ -79,23 +79,23 @@ def train(rank, a, h):
     trainset = MelDataset(training_filelist, h.segment_size, h.n_fft, h.num_mels,
                           h.hop_size, h.win_size, h.sampling_rate, h.fmin, h.fmax, n_cache_reuse=0,
                           shuffle=False if h.num_gpus > 1 else True, fmax_loss=h.fmax_for_loss, device=device,
-                          fine_tuning=a.fine_tuning, base_mels_path=a.input_mels_dir)
+                          fine_tuning=a.fine_tuning, base_mels_path=a.input_mels_dir, trim_non_voiced=a.trim_non_voiced)
     
     STFT = STFT_Class(h.sampling_rate, h.num_mels, h.n_fft, h.win_size, h.hop_size, h.fmin, h.fmax)
     
     train_sampler = DistributedSampler(trainset) if h.num_gpus > 1 else None
-
+    
     train_loader = DataLoader(trainset, num_workers=h.num_workers, shuffle=False,
                               sampler=train_sampler,
                               batch_size=h.batch_size,
                               pin_memory=True,
                               drop_last=True)
-
+    
     if rank == 0:
         validset = MelDataset(validation_filelist, h.segment_size, h.n_fft, h.num_mels,
                               h.hop_size, h.win_size, h.sampling_rate, h.fmin, h.fmax, False, False, n_cache_reuse=0,
                               fmax_loss=h.fmax_for_loss, device=device, fine_tuning=a.fine_tuning,
-                              base_mels_path=a.input_mels_dir)
+                              base_mels_path=a.input_mels_dir, trim_non_voiced=a.trim_non_voiced)
         validation_loader = DataLoader(validset, num_workers=1, shuffle=False,
                                        sampler=None,
                                        batch_size=1,
@@ -237,6 +237,8 @@ def main():
     parser.add_argument('--n_models_to_keep', default=2, type=int)
     parser.add_argument('--summary_interval', default=100, type=int)
     parser.add_argument('--validation_interval', default=1000, type=int)
+    parser.add_argument('--skip_file_checks', action='store_true')
+    parser.add_argument('--trim_non_voiced', action='store_true')
     parser.add_argument('--fine_tuning', default=False, type=bool)
 
     a = parser.parse_args()

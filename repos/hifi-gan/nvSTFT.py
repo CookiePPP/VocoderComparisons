@@ -15,10 +15,14 @@ except:
     sf = None
 
 def load_wav_to_torch(full_path, target_sr=None):
-    if full_path.endswith('wav') and sf is not None:
-        sampling_rate, data = read(full_path) # scipy only supports .wav but reads faster...
-    else:
-        data, sampling_rate = sf.read(full_path, always_2d=True)[:,0] # than soundfile.
+    try:
+        if full_path.endswith('wav') and sf is not None:
+            sampling_rate, data = read(full_path) # scipy only supports .wav but reads faster...
+        else:
+            data, sampling_rate = sf.read(full_path, always_2d=True)[:,0] # than soundfile.
+    except Exception as ex:
+        print(f"'{full_path}' failed to load.\nException:")
+        print(ex)
     
     if np.issubdtype(data.dtype, np.integer): # if audio data is type int
         max_mag = -np.iinfo(data.dtype).min # maximum magnitude = min possible value of intXX
