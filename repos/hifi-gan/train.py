@@ -31,7 +31,7 @@ def train(rank, a, h):
     device = torch.device('cuda:{:d}'.format(rank))
 
     generator = Generator(h).to(device)
-    mpd = MultiPeriodDiscriminator().to(device)
+    mpd = MultiPeriodDiscriminator(h["discriminator_periods"] if "discriminator_periods" in h.keys() else None).to(device)
     msd = MultiScaleDiscriminator().to(device)
 
     if rank == 0:
@@ -176,10 +176,8 @@ def train(rank, a, h):
                                     {'generator': (generator.module if h.num_gpus > 1 else generator).state_dict()})
                     checkpoint_path = "{}/do_{:08d}".format(a.checkpoint_path, steps)
                     save_checkpoint(checkpoint_path, 
-                                    {'mpd': (mpd.module if h.num_gpus > 1
-                                                         else mpd).state_dict(),
-                                     'msd': (msd.module if h.num_gpus > 1
-                                                         else msd).state_dict(),
+                                    {'mpd': (mpd.module if h.num_gpus > 1 else mpd).state_dict(),
+                                     'msd': (msd.module if h.num_gpus > 1 else msd).state_dict(),
                                      'optim_g': optim_g.state_dict(), 'optim_d': optim_d.state_dict(), 'steps': steps,
                                      'epoch': epoch})
                     del_old_checkpoints(a.checkpoint_path, 'g_' , a.n_models_to_keep)
@@ -222,27 +220,27 @@ def train(rank, a, h):
 
 def main():
     print('Initializing Training Process..')
-
+    
     parser = argparse.ArgumentParser()
-
-    parser.add_argument('--group_name', default=None)
-    parser.add_argument('--input_wavs_dir', default=None)
+    
+    parser.add_argument('--group_name',          default=None)
+    parser.add_argument('--input_wavs_dir',      default=None)
     parser.add_argument('--input_training_file', default='LJSpeech-1.1/training.txt')
     parser.add_argument('--input_validation_file', default='LJSpeech-1.1/validation.txt')
-    parser.add_argument('--checkpoint_path', default='cp_hifigan')
+    parser.add_argument('--checkpoint_path',     default='cp_hifigan')
     parser.add_argument('--config', default='')
-    parser.add_argument('--training_epochs', default=3100, type=int)
-    parser.add_argument('--stdout_interval', default=5, type=int)
+    parser.add_argument('--training_epochs',  default=3100, type=int)
+    parser.add_argument('--stdout_interval',  default=5, type=int)
     parser.add_argument('--checkpoint_interval', default=5000, type=int)
     parser.add_argument('--n_models_to_keep', default=2, type=int)
     parser.add_argument('--summary_interval', default=100, type=int)
     parser.add_argument('--validation_interval', default=1000, type=int)
     parser.add_argument('--skip_file_checks', action='store_true')
-    parser.add_argument('--trim_non_voiced', action='store_true')
+    parser.add_argument('--trim_non_voiced',  action='store_true')
     parser.add_argument('--fine_tuning', default=False, type=bool)
     
     a = parser.parse_args()
-
+    
     assert a.config, '--config not specified!'
     
     with open(a.config) as f:

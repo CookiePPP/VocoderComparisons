@@ -10,6 +10,10 @@ from librosa.filters import mel as librosa_mel_fn
 from nvSTFT import load_wav_to_torch
 from nvSTFT import STFT as STFT_Class
 from glob import glob
+try:
+    import pyworld as pw
+except:
+    pw = None
 
 def check_files(sampling_rate, segment_size, training_files):
     len_training_files = len(training_files)
@@ -53,7 +57,7 @@ def get_nonzero_indexes(voiced):# get first and last zero index in array/1d tens
         if voiced[i] != 0:
             start_indx = i
             break
-    end_indx = 0
+    end_indx = len(voiced)
     for i in reversed(range(len(voiced))):
         if voiced[i] != 0:
             end_indx = i
@@ -85,9 +89,6 @@ class MelDataset(torch.utils.data.Dataset):
         self.device = device
         self.fine_tuning = fine_tuning
         self.trim_non_voiced = trim_non_voiced
-        if self.trim_non_voiced:
-            import pyworld as pw
-            self.pw = pw
 
     def get_pitch(self, audio):
         # Extract Pitch/f0 from raw waveform using PyWORLD
@@ -100,7 +101,7 @@ class MelDataset(torch.utils.data.Dataset):
             Upper F0 limit in Hz.
             Default: 800.0
         """
-        f0, timeaxis = self.pw.dio(
+        f0, timeaxis = pw.dio(
             audio, self.sampling_rate,
             frame_period=(self.hop_size/self.sampling_rate)*1000.,
         )  # For hop size 256 frame period is 11.6 ms
