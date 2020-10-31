@@ -85,7 +85,7 @@ class STFT():
         if fmax not in self.mel_basis:
             mel = librosa_mel_fn(sampling_rate, n_fft, n_mels, fmin, fmax)
             self.mel_basis[str(fmax)+'_'+str(y.device)] = torch.from_numpy(mel).float().to(y.device)
-            self.hann_window[str(y.device)] = torch.hann_window(1024).to(y.device)
+            self.hann_window[str(y.device)] = torch.hann_window(self.win_size).to(y.device)
         
         y = torch.nn.functional.pad(y.unsqueeze(1), (int((n_fft-hop_length)/2), int((n_fft-hop_length)/2)), mode='reflect')
         y = y.squeeze(1)
