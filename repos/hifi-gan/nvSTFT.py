@@ -19,6 +19,8 @@ def load_wav_to_torch(full_path, target_sr=None, return_empty_on_exception=False
     try:
         if full_path.endswith('wav') and sf is not None:
             sampling_rate, data = read(full_path) # scipy only supports .wav but reads faster...
+            if len(data.shape) > 1:
+                data = data[:, 0]
         else:
             data, sampling_rate = sf.read(full_path, always_2d=True)[:,0] # than soundfile.
     except Exception as ex:
