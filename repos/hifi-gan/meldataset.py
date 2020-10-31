@@ -18,7 +18,7 @@ def check_files(sampling_rate, segment_size, training_files):
         print(len_training_files - len(training_files), "Files don't exist (and have been removed from training)")
     
     len_training_files = len(training_files)
-    training_files = [x for x in training_files if len(load_wav_to_torch(x, target_sr=sampling_rate)[0]) > segment_size]
+    training_files = [x for x in training_files if len(load_wav_to_torch(x, target_sr=sampling_rate, return_empty_on_exception=True)[0]) > segment_size]
     if (len_training_files - len(training_files)) > 0:
         print(len_training_files - len(training_files), "Files are too short (and have been removed from training)")
     return training_files
@@ -87,7 +87,7 @@ class MelDataset(torch.utils.data.Dataset):
         self.trim_non_voiced = trim_non_voiced
         if self.trim_non_voiced:
             import pyworld as pw
-            self.py = pw
+            self.pw = pw
 
     def get_pitch(self, audio):
         # Extract Pitch/f0 from raw waveform using PyWORLD

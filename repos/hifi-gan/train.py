@@ -96,7 +96,7 @@ def train(rank, a, h):
                               h.hop_size, h.win_size, h.sampling_rate, h.fmin, h.fmax, False, False, n_cache_reuse=0,
                               fmax_loss=h.fmax_for_loss, device=device, fine_tuning=a.fine_tuning,
                               trim_non_voiced=a.trim_non_voiced)
-        validation_loader = DataLoader(validset, num_workers=1, shuffle=False,
+        validation_loader = DataLoader(validset, num_workers=h.num_workers, shuffle=False,
                                        sampler=None,
                                        batch_size=1,
                                        pin_memory=True,
