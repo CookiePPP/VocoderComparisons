@@ -232,12 +232,12 @@ def main():
     parser.add_argument('--training_epochs',  default=3100, type=int)
     parser.add_argument('--stdout_interval',  default=5, type=int)
     parser.add_argument('--checkpoint_interval', default=5000, type=int)
-    parser.add_argument('--n_models_to_keep', default=2, type=int)
-    parser.add_argument('--summary_interval', default=100, type=int)
+    parser.add_argument('--n_models_to_keep', default=2,  type=int)
+    parser.add_argument('--summary_interval', default=20, type=int)
     parser.add_argument('--validation_interval', default=1000, type=int)
     parser.add_argument('--skip_file_checks', action='store_true')
     parser.add_argument('--trim_non_voiced',  action='store_true')
-    parser.add_argument('--fine_tuning', default=False, type=bool)
+    parser.add_argument('--fine_tune',        action='store_true')
     
     a = parser.parse_args()
     

@@ -9,25 +9,21 @@ import librosa
 from librosa.util import normalize
 from librosa.filters import mel as librosa_mel_fn
 from scipy.io.wavfile import read
-try:
-    import soundfile as sf
-except:
-    sf = None
+import soundfile as sf
 
 def load_wav_to_torch(full_path, target_sr=None, return_empty_on_exception=False):
     sampling_rate = None
     try:
-        if full_path.endswith('wav') and sf is not None:
-            sampling_rate, data = read(full_path) # scipy only supports .wav but reads faster...
-            if len(data.shape) > 1:
-                data = data[:, 0]
-        else:
-            data, sampling_rate = sf.read(full_path, always_2d=True)[:,0] # than soundfile.
+        data, sampling_rate = sf.read(full_path, always_2d=True)# than soundfile.
     except Exception as ex:
         print(f"'{full_path}' failed to load.\nException:")
         print(ex)
         if return_empty_on_exception:
             return [], sampling_rate or target_sr or 48000
+    
+    if len(data.shape) > 1:
+        data = data[:, 0]
+        assert len(data) > 2# check duration of audio file is > 2 samples (because otherwise the slice operation was on the wrong dimension)
     
     if np.issubdtype(data.dtype, np.integer): # if audio data is type int
         max_mag = -np.iinfo(data.dtype).min # maximum magnitude = min possible value of intXX
