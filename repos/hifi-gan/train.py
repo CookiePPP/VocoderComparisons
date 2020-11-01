@@ -237,7 +237,7 @@ def main():
     parser.add_argument('--validation_interval', default=1000, type=int)
     parser.add_argument('--skip_file_checks', action='store_true')
     parser.add_argument('--trim_non_voiced',  action='store_true')
-    parser.add_argument('--fine_tune',        action='store_true')
+    parser.add_argument('--fine_tuning',      action='store_true')
     
     a = parser.parse_args()
     
