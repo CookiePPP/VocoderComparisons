@@ -3,5 +3,5 @@ numpy
 librosa
 scipy
 tensorboard
-soundfile1
+SoundFile
 matplotlib
