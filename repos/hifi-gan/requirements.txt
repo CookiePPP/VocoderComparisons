@@ -5,3 +5,4 @@ scipy
 tensorboard
 SoundFile
 matplotlib
+pyworld
